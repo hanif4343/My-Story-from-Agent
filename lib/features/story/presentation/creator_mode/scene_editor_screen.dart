@@ -40,6 +40,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   TransitionType? _selectedTransition;
 
   final List<String> _photoPaths = [];
+  final List<String> _videoPaths = [];
   final List<String> _voiceNotePaths = [];
   String? _musicPath;
 
@@ -92,6 +93,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         : TransitionType.fade;
 
     _photoPaths.addAll(scene?.photoPaths ?? []);
+    _videoPaths.addAll(scene?.videoPaths ?? []);
     _voiceNotePaths.addAll(scene?.voiceNotePaths ?? []);
     _musicPath = scene?.musicPath;
   }
@@ -118,9 +120,25 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     }
   }
 
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickVideo(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _videoPaths.add(picked.path);
+      });
+    }
+  }
+
   void _removePhotoAt(int index) {
     setState(() {
       _photoPaths.removeAt(index);
+    });
+  }
+
+  void _removeVideoAt(int index) {
+    setState(() {
+      _videoPaths.removeAt(index);
     });
   }
 
@@ -210,7 +228,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       subtitle: _subtitleController.text,
       storyText: _storyTextController.text,
       photoPaths: List<String>.from(_photoPaths),
-      videoPaths: [], // video handling omitted for brevity
+      videoPaths: List<String>.from(_videoPaths),
       voiceNotePaths: List<String>.from(_voiceNotePaths),
       musicPath: _musicPath,
       theme: _selectedTheme?.toString() ?? AppTheme.darkRomantic.toString(),
@@ -353,6 +371,31 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                   trailing: IconButton(
                     icon: const Icon(Icons.delete),
                     onPressed: () => _removePhotoAt(i),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Videos
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Videos', style: TextStyle(fontSize: 16)),
+                  IconButton(
+                    icon: const Icon(Icons.video_collection),
+                    onPressed: _pickVideo,
+                  ),
+                ],
+              ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _videoPaths.length,
+                itemBuilder: (c, i) => ListTile(
+                  leading: const Icon(Icons.video_file),
+                  title: Text(_videoPaths[i].split('/').last),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _removeVideoAt(i),
                   ),
                 ),
               ),
