@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../data/repositories/hive_scene_repository.dart';
 import '../../data/models/scene_model.dart';
@@ -12,7 +13,8 @@ import '../../data/models/scene_model.dart';
 /// [PageView]. Each page shows the scene's year, title, subtitle and
 /// story text using a dark romantic theme. If a scene contains photos,
 /// they are displayed in a horizontal carousel above or below the
-/// story text.
+/// story text. If a scene contains videos, the first video is played
+/// with a play/pause overlay button.
 class StoryModeScreen extends StatelessWidget {
   const StoryModeScreen({super.key});
 
@@ -76,6 +78,12 @@ class StoryModeScreen extends StatelessWidget {
                         ),
                       ),
 
+                      // Video player (if any)
+                      if (scene.videoPaths.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        SceneVideoPlayer(scene: scene),
+                      ],
+
                       // Photo carousel (if any)
                       if (scene.photoPaths.isNotEmpty) ...[
                         const SizedBox(height: 16),
@@ -118,6 +126,92 @@ class StoryModeScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Widget that plays the first video of a scene with a play/pause overlay.
+/// The controller is disposed when the widget is removed from the tree.
+class SceneVideoPlayer extends StatefulWidget {
+  final SceneModel scene;
+
+  const SceneVideoPlayer({required this.scene, super.key});
+
+  @override
+  State<SceneVideoPlayer> createState() => _SceneVideoPlayerState();
+}
+
+class _SceneVideoPlayerState extends State<SceneVideoPlayer> {
+  VideoPlayerController? _controller;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    final file = File(widget.scene.videoPaths.first);
+    _controller = VideoPlayerController.file(file);
+    await _controller!.initialize();
+    setState(() {
+      _isPlaying = true;
+      _controller!.play();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayPause() {
+    if (_controller == null) return;
+    setState(() {
+      if (_controller!.value.isPlaying) {
+        _controller!.pause();
+        _isPlaying = false;
+      } else {
+        _controller!.play();
+        _isPlaying = true;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_controller == null || !_controller!.value.isInitialized) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        AspectRatio(
+          aspectRatio: _controller!.value.aspectRatio,
+          child: VideoPlayer(_controller!),
+        ),
+        Positioned.fill(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _togglePlayPause,
+              child: Center(
+                child: Icon(
+                  _isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                  color: Colors.white70,
+                  size: 64,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
