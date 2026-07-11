@@ -26,22 +26,35 @@ class StoryModeScreen extends StatefulWidget {
 }
 
 class _StoryModeScreenState extends State<StoryModeScreen> {
-  late final AudioPlayer _audioPlayer;
+  late final AudioPlayer _musicPlayer;
+  late final AudioPlayer _voicePlayer;
   bool _isMuted = false;
+  bool _isVoicePlaying = false;
   int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
-    _audioPlayer.setReleaseMode(ReleaseMode.loop);
-    _audioPlayer.setVolume(_isMuted ? 0 : 1);
+    _musicPlayer = AudioPlayer();
+    _musicPlayer.setReleaseMode(ReleaseMode.loop);
+    _musicPlayer.setVolume(_isMuted ? 0 : 1);
+
+    _voicePlayer = AudioPlayer();
+    _voicePlayer.setReleaseMode(ReleaseMode.stop);
+    _voicePlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isVoicePlaying = state == PlayerState.playing;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _audioPlayer.stop();
-    _audioPlayer.dispose();
+    _musicPlayer.stop();
+    _musicPlayer.dispose();
+    _voicePlayer.stop();
+    _voicePlayer.dispose();
     super.dispose();
   }
 
@@ -49,12 +62,44 @@ class _StoryModeScreenState extends State<StoryModeScreen> {
   /// is defined. Stops any previously playing music.
   Future<void> _playMusicForScene(List<SceneModel> scenes, int index) async {
     final scene = scenes[index];
-    await _audioPlayer.stop();
+    await _musicPlayer.stop();
     if (scene.musicPath != null && scene.musicPath!.isNotEmpty) {
       try {
-        await _audioPlayer.setSource(DeviceFileSource(scene.musicPath!));
-        await _audioPlayer.setVolume(_isMuted ? 0 : 1);
-        await _audioPlayer.resume();
+        await _musicPlayer.setSource(DeviceFileSource(scene.musicPath!));
+        await _musicPlayer.setVolume(_isMuted ? 0 : 1);
+        await _musicPlayer.resume();
+      } catch (_) {
+        // ignore errors (e.g., file not found)
+      }
+    }
+  }
+
+  /// Stops any playing voice note.
+  Future<void> _stopVoice() async {
+    await _voicePlayer.stop();
+    setState(() {
+      _isVoicePlaying = false;
+    });
+  }
+
+  /// Toggles mute state and updates the audio player volume.
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+      _musicPlayer.setVolume(_isMuted ? 0 : 1);
+    });
+  }
+
+  /// Plays or pauses the first voice note of [scene].
+  Future<void> _toggleVoicePlay(SceneModel scene) async {
+    if (scene.voiceNotePaths.isEmpty) return;
+    final path = scene.voiceNotePaths.first;
+    if (_isVoicePlaying) {
+      await _voicePlayer.pause();
+    } else {
+      try {
+        await _voicePlayer.setSource(DeviceFileSource(path));
+        await _voicePlayer.resume();
       } catch (_) {
         // ignore errors (e.g., file not found)
       }
@@ -65,14 +110,7 @@ class _StoryModeScreenState extends State<StoryModeScreen> {
   void _onPageChanged(int index, List<SceneModel> scenes) {
     _currentPage = index;
     _playMusicForScene(scenes, index);
-  }
-
-  /// Toggles mute state and updates the audio player volume.
-  void _toggleMute() {
-    setState(() {
-      _isMuted = !_isMuted;
-      _audioPlayer.setVolume(_isMuted ? 0 : 1);
-    });
+    _stopVoice();
   }
 
   @override
@@ -144,6 +182,22 @@ class _StoryModeScreenState extends State<StoryModeScreen> {
                               height: 1.5,
                             ),
                           ),
+
+                          // Voice note button
+                          if (scene.voiceNotePaths.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            TextButton.icon(
+                              onPressed: () => _toggleVoicePlay(scene),
+                              icon: Icon(
+                                _isVoicePlaying ? Icons.pause : Icons.play_arrow,
+                                color: Colors.white,
+                              ),
+                              label: const Text(
+                                '🎤 Play voice note',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ],
 
                           // Video player (if any)
                           if (scene.videoPaths.isNotEmpty) ...[
