@@ -1,8 +1,12 @@
 // lib/features/story/presentation/creator_mode/password_gate_screen.dart
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:crypto/crypto.dart';
+
+import 'password_setup_screen.dart';
 
 class PasswordGateScreen extends StatefulWidget {
   const PasswordGateScreen({super.key});
@@ -15,6 +19,23 @@ class _PasswordGateScreenState extends State<PasswordGateScreen> {
   final TextEditingController _controller = TextEditingController();
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // প্রথমবার হলে (কোনো পাসওয়ার্ড সেট করা না থাকলে) Setup স্ক্রিনে পাঠানো।
+    WidgetsBinding.instance.addPostFrameCallback((_) => _redirectIfFirstTime());
+  }
+
+  void _redirectIfFirstTime() {
+    final Box settingsBox = Hive.box('settings');
+    final storedHash = settingsBox.get('creator_password_hash') as String? ?? '';
+    if (storedHash.isEmpty && mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const PasswordSetupScreen()),
+      );
+    }
+  }
+
   Future<void> _validatePassword() async {
     final entered = _controller.text.trim();
     if (entered.isEmpty) return;
@@ -23,8 +44,9 @@ class _PasswordGateScreenState extends State<PasswordGateScreen> {
 
     final Box settingsBox = Hive.box('settings');
     final storedHash = settingsBox.get('creator_password_hash') as String? ?? '';
+    final enteredHash = sha256.convert(utf8.encode(entered)).toString();
 
-    final isValid = entered == storedHash;
+    final isValid = enteredHash == storedHash;
 
     setState(() => _isLoading = false);
 
