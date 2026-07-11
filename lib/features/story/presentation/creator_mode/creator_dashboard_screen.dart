@@ -5,7 +5,7 @@ import '../../data/models/scene_model.dart';
 import '../../data/repositories/hive_scene_repository.dart';
 import 'scene_editor_screen.dart';
 
-/// Dashboard showing list of scenes with ability to add, edit or delete.
+/// Dashboard showing list of scenes with ability to add, edit, delete, and reorder.
 class CreatorDashboardScreen extends StatefulWidget {
   const CreatorDashboardScreen({Key? key}) : super(key: key);
 
@@ -40,7 +40,6 @@ class _CreatorDashboardScreenState extends State<CreatorDashboardScreen> {
         builder: (_) => SceneEditorScreen(existingScene: scene),
       ),
     );
-    // Refresh list when coming back from the editor.
     _loadScenes();
   }
 
@@ -71,22 +70,42 @@ class _CreatorDashboardScreenState extends State<CreatorDashboardScreen> {
     }
   }
 
+  /// Handles reordering of scenes and persists the new order.
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    setState(() {
+      if (oldIndex < newIndex) newIndex -= 1;
+      final moved = _scenes.removeAt(oldIndex);
+      _scenes.insert(newIndex, moved);
+    });
+
+    final repo = Provider.of<HiveSceneRepository>(context, listen: false);
+    final orderedIds = _scenes.map((s) => s.id).toList();
+    await repo.reorderScenes(orderedIds);
+    await _loadScenes();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Creator Dashboard'),
       ),
-      body: ListView.builder(
+      body: ReorderableListView.builder(
         itemCount: _scenes.length,
+        onReorder: _onReorder,
         itemBuilder: (context, index) {
           final scene = _scenes[index];
           return ListTile(
+            key: ValueKey(scene.id),
             title: Text(scene.title),
             subtitle: Text(scene.subtitle),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Icon(Icons.drag_handle),
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit),
                   onPressed: () => _navigateToEditor(scene: scene),
