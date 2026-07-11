@@ -5,7 +5,7 @@ import '../../data/models/scene_model.dart';
 import '../../data/repositories/hive_scene_repository.dart';
 import 'scene_editor_screen.dart';
 
-/// Dashboard showing list of scenes with ability to add or edit.
+/// Dashboard showing list of scenes with ability to add, edit or delete.
 class CreatorDashboardScreen extends StatefulWidget {
   const CreatorDashboardScreen({Key? key}) : super(key: key);
 
@@ -44,6 +44,33 @@ class _CreatorDashboardScreenState extends State<CreatorDashboardScreen> {
     _loadScenes();
   }
 
+  /// Shows a confirmation dialog before deleting a scene.
+  Future<void> _confirmDelete(SceneModel scene) async {
+    final repo = Provider.of<HiveSceneRepository>(context, listen: false);
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this scene?'),
+        content: Text('Are you sure you want to delete "${scene.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('না'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('হ্যাঁ'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete == true) {
+      await repo.deleteScene(scene.id);
+      _loadScenes();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -57,9 +84,18 @@ class _CreatorDashboardScreenState extends State<CreatorDashboardScreen> {
           return ListTile(
             title: Text(scene.title),
             subtitle: Text(scene.subtitle),
-            trailing: IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _navigateToEditor(scene: scene),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit),
+                  onPressed: () => _navigateToEditor(scene: scene),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () => _confirmDelete(scene),
+                ),
+              ],
             ),
           );
         },
