@@ -1,5 +1,8 @@
 // lib/features/story/presentation/creator_mode/scene_editor_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/scene_model.dart';
@@ -29,6 +32,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   AppTheme? _selectedTheme;
   AnimationType? _selectedAnimation;
   TransitionType? _selectedTransition;
+
+  final List<String> _photoPaths = [];
 
   @override
   void initState() {
@@ -67,6 +72,8 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             orElse: () => TransitionType.fade,
           )
         : TransitionType.fade;
+
+    _photoPaths.addAll(scene?.photoPaths ?? []);
   }
 
   @override
@@ -77,6 +84,22 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     _yearController.dispose();
     _durationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _photoPaths.add(picked.path);
+      });
+    }
+  }
+
+  void _removePhotoAt(int index) {
+    setState(() {
+      _photoPaths.removeAt(index);
+    });
   }
 
   Future<void> _saveScene() async {
@@ -95,7 +118,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             title: _titleController.text,
             subtitle: _subtitleController.text,
             storyText: _storyTextController.text,
-            photoPaths: [],
+            photoPaths: List<String>.from(_photoPaths),
             videoPaths: [],
             voiceNotePaths: [],
             musicPath: null,
@@ -116,7 +139,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         title: _titleController.text,
         subtitle: _subtitleController.text,
         storyText: _storyTextController.text,
-        photoPaths: List<String>.from(scene.photoPaths),
+        photoPaths: List<String>.from(_photoPaths),
         videoPaths: List<String>.from(scene.videoPaths),
         voiceNotePaths: List<String>.from(scene.voiceNotePaths),
         musicPath: scene.musicPath,
@@ -217,6 +240,57 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                     .toList(),
                 onChanged: (v) => setState(() => _selectedTransition = v),
               ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _pickImage,
+                child: const Text('ছবি যোগ করো'),
+              ),
+              const SizedBox(height: 10),
+              if (_photoPaths.isNotEmpty)
+                SizedBox(
+                  height: 80,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: List.generate(_photoPaths.length, (index) {
+                        final path = _photoPaths[index];
+                        return Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                              ),
+                              child: Image.file(
+                                File(path),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: GestureDetector(
+                                onTap: () => _removePhotoAt(index),
+                                child: const CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: Colors.black54,
+                                  child: Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _saveScene,
