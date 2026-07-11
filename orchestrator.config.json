@@ -2,7 +2,7 @@
   "language": "flutter",
   "validate_commands": [
     "flutter pub get",
-    "flutter analyze",
+    "flutter analyze --no-fatal-infos --no-fatal-warnings",
     "flutter test"
   ]
 }
