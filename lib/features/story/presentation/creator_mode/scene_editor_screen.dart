@@ -9,6 +9,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../../../core/constants/app_enums.dart';
 import '../../data/models/scene_model.dart';
@@ -40,6 +41,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
   final List<String> _photoPaths = [];
   final List<String> _voiceNotePaths = [];
+  String? _musicPath;
 
   final Record _record = Record();
   bool _isRecording = false;
@@ -91,6 +93,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
 
     _photoPaths.addAll(scene?.photoPaths ?? []);
     _voiceNotePaths.addAll(scene?.voiceNotePaths ?? []);
+    _musicPath = scene?.musicPath;
   }
 
   @override
@@ -176,6 +179,24 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     });
   }
 
+  Future<void> _pickMusic() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.audio,
+      allowMultiple: false,
+    );
+    if (result != null && result.files.isNotEmpty) {
+      setState(() {
+        _musicPath = result.files.first.path;
+      });
+    }
+  }
+
+  void _clearMusic() {
+    setState(() {
+      _musicPath = null;
+    });
+  }
+
   Future<void> _saveScene() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -191,7 +212,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       photoPaths: List<String>.from(_photoPaths),
       videoPaths: [], // video handling omitted for brevity
       voiceNotePaths: List<String>.from(_voiceNotePaths),
-      musicPath: null,
+      musicPath: _musicPath,
       theme: _selectedTheme?.toString() ?? AppTheme.darkRomantic.toString(),
       animationType:
           _selectedAnimation?.toString() ?? AnimationType.heartRain.toString(),
@@ -365,6 +386,27 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              // Music picker
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Music', style: TextStyle(fontSize: 16)),
+                  IconButton(
+                    icon: const Icon(Icons.music_note),
+                    onPressed: _pickMusic,
+                  ),
+                ],
+              ),
+              if (_musicPath != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Chip(
+                    label: Text(_musicPath!.split('/').last),
+                    deleteIcon: const Icon(Icons.close),
+                    onDeleted: _clearMusic,
+                  ),
+                ),
             ],
           ),
         ),
