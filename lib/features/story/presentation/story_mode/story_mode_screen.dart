@@ -1,4 +1,6 @@
 // lib/features/story/presentation/story_mode/story_mode_screen.dart
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +10,9 @@ import '../../data/models/scene_model.dart';
 
 /// A read‑only screen that displays all saved scenes in a vertical
 /// [PageView]. Each page shows the scene's year, title, subtitle and
-/// story text using a dark romantic theme.
+/// story text using a dark romantic theme. If a scene contains photos,
+/// they are displayed in a horizontal carousel above or below the
+/// story text.
 class StoryModeScreen extends StatelessWidget {
   const StoryModeScreen({super.key});
 
@@ -71,6 +75,41 @@ class StoryModeScreen extends StatelessWidget {
                           height: 1.5,
                         ),
                       ),
+
+                      // Photo carousel (if any)
+                      if (scene.photoPaths.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 200,
+                          child: PageView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: scene.photoPaths.length,
+                            itemBuilder: (context, idx) {
+                              final path = scene.photoPaths[idx];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(path),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: Colors.grey[800],
+                                        child: const Icon(
+                                          Icons.image_not_supported,
+                                          size: 100,
+                                          color: Colors.grey,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
