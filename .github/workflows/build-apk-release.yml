@@ -1,0 +1,50 @@
+name: Build Release APK
+
+# Actions ট্যাব থেকে ম্যানুয়ালি "Run workflow" চাপলেই আসল keystore দিয়ে
+# সাইন করা release APK বানাবে (debug signing না)।
+on:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+
+      - name: pubspec.yaml আছে কিনা চেক করা
+        run: |
+          if [ ! -f "pubspec.yaml" ]; then
+            echo "::error::pubspec.yaml পাওয়া যায়নি এই রিপোর রুটে।"
+            exit 1
+          fi
+
+      - name: Dependencies আনা
+        run: flutter pub get
+
+      - name: Keystore ডিকোড করা (secret থেকে)
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+
+      - name: key.properties বানানো (secret থেকে, gitignore করা আছে)
+        run: |
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.STORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=app/upload-keystore.jks
+          EOF
+
+      - name: Release APK build করা (আসল keystore দিয়ে সাইন)
+        run: flutter build apk --release
+
+      - name: APK আপলোড করা (এখান থেকে ডাউনলোড করা যাবে)
+        uses: actions/upload-artifact@v4
+        with:
+          name: our-story-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
